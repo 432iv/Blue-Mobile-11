@@ -1,0 +1,19 @@
+{
+  "name": "blue-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Blue Mobile POS — full-stack production project (frontend + backend + PostgreSQL).",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "install:backend": "cd backend && npm install",
+    "dev": "cd backend && npm run dev",
+    "start": "cd backend && npm start",
+    "seed": "cd backend && npm run seed",
+    "migrate": "cd backend && npx prisma migrate dev",
+    "migrate:deploy": "cd backend && npx prisma migrate deploy",
+    "test:api": "cd backend && bash scripts/test-api.sh",
+    "test:frontend": "cd backend && node scripts/test-frontend.js"
+  }
+}

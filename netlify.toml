@@ -1,0 +1,37 @@
+# ============================================================
+# Blue Mobile — Netlify configuration (frontend hosting)
+# ------------------------------------------------------------
+# OPTIONAL deployment path: host the frontend on Netlify while
+# the backend runs on Render/Railway. To use it:
+#
+#   1. Set the API URL in frontend/js/config.js
+#        window.BLUE_MOBILE_API_BASE = "https://YOUR-BACKEND-URL/api";
+#   2. On the backend set FRONTEND_URL to your Netlify URL
+#      (e.g. https://blue-mobile.netlify.app). Cookies then switch
+#      automatically to SameSite=None + Secure (HTTPS required —
+#      Netlify provides it).
+#
+# If you use the recommended single-service deployment (backend
+# serves the frontend itself), you do NOT need Netlify at all.
+# ============================================================
+
+[build]
+  publish = "frontend"
+  # no build step — this is a static site
+
+# Basic security headers for the Netlify-hosted page.
+# (When the backend serves the page instead, Helmet applies.)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self)"
+
+# Optional Content-Security-Policy for the Netlify-hosted page.
+# Uncomment and replace the API domain with your backend URL:
+# [[headers]]
+#   for = "/*"
+#   [headers.values]
+#     Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' https: 'unsafe-inline'; font-src 'self' https: data:; img-src 'self' data: https:; connect-src 'self' https://YOUR-BACKEND-URL; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"

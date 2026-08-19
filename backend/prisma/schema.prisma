@@ -1,0 +1,270 @@
+// ============================================================
+// Blue Mobile POS — Prisma schema
+// PostgreSQL database model designed from the ACTUAL features
+// of the existing Blue Mobile application (see ANALYSIS.md).
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------
+// Users — exactly ONE admin account exists in the system.
+// The account is created by `npm run seed` (env-driven).
+// There is no registration endpoint and no user-creation API.
+// ------------------------------------------------------------
+model User {
+  id           String        @id @default(cuid())
+  username     String        @unique
+  passwordHash String        @map("password_hash")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  sessions     AuthSession[]
+
+  @@map("users")
+}
+
+// Server-side sessions → real logout / revocation / expiry.
+// The JWT carries the jti; this table is the source of truth
+// for whether the session is still valid.
+model AuthSession {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenJti  String    @unique @map("token_jti")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+// ------------------------------------------------------------
+// Products / inventory
+// - category = product TYPE (Chargers, Cables, Phone Cases, ...)
+// - identity = id (variant) + name + brand + specs + compatible model
+// - description is the product description/specifications (NOT daily notes)
+// ------------------------------------------------------------
+model Product {
+  id               String          @id @default(cuid())
+  name             String
+  barcode          String?         @unique // normalized: '' → null
+  buyingPrice      Decimal         @default(0) @map("buying_price") // latest purchase price
+  sellingPrice     Decimal         @default(0) @map("selling_price")
+  quantity         Int             @default(0)
+  category         String          @default("Other Accessories") // product type
+  brand            String          @default("")
+  description      String? // product description / specifications (Type-C → iPhone, etc.)
+  wattage          String? // chargers: 30W, 65W ...
+  connectorType    String? // cables / adapters: Type-C → Lightning ...
+  imageUrl         String?         @map("image_url")
+  notes            String?
+  minimumStock     Int             @default(5) @map("minimum_stock")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  compatibleModelId String?        @map("compatible_model_id")
+  compatibleModel  DeviceModel?    @relation(fields: [compatibleModelId], references: [id], onDelete: SetNull)
+
+  saleItems        SaleItem[]
+  batches          PurchaseBatch[]
+  movements        StockMovement[]
+
+  @@index([name])
+  @@index([category])
+  @@index([brand])
+  @@map("products")
+}
+
+// ------------------------------------------------------------
+// Device models — searchable phone/device model list used by
+// Phone Cases & Screen Protectors (brand: Apple, Samsung, ...)
+// ------------------------------------------------------------
+model DeviceModel {
+  id        String    @id @default(cuid())
+  brand     String
+  model     String
+  createdAt DateTime  @default(now()) @map("created_at")
+  products  Product[]
+
+  @@unique([brand, model])
+  @@map("device_models")
+}
+
+// ------------------------------------------------------------
+// Purchase batches — internal costing ledger.
+// Buying the same product at a different price creates a NEW
+// batch (never a duplicate product). FIFO cost is computed from
+// batches at sale time; product.buying_price shows the latest.
+// ------------------------------------------------------------
+model PurchaseBatch {
+  id          String   @id @default(cuid())
+  productId   String   @map("product_id")
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity    Int // original quantity purchased
+  remaining   Int // quantity still in stock from this batch
+  unitCost    Decimal  @map("unit_cost")
+  purchasedAt DateTime @default(now()) @map("purchased_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([productId, purchasedAt])
+  @@map("purchase_batches")
+}
+
+// ------------------------------------------------------------
+// Stock movements — audit ledger of every inventory change
+// (purchase / sale / sale refund / adjustment)
+// ------------------------------------------------------------
+model StockMovement {
+  id        String   @id @default(cuid())
+  productId String   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      String // purchase | sale | sale_refund | adjustment
+  quantity  Int // signed
+  unitCost  Decimal? @map("unit_cost")
+  saleId    String?  @map("sale_id")
+  batchId   String?  @map("batch_id")
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([productId, createdAt])
+  @@map("stock_movements")
+}
+
+// ------------------------------------------------------------
+// Daily notes — belong to a sales day; they are NOT products,
+// sale items or inventory movements (e.g. "gave my brother 100")
+// ------------------------------------------------------------
+model DailyNote {
+  id        String     @id @default(cuid())
+  sessionId String     @map("session_id")
+  session   DaySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@map("daily_notes")
+}
+
+// ------------------------------------------------------------
+// Day sessions — the app records sales inside an "open day";
+// closing the day locks it and produces the daily report.
+// status: "open" | "closed"   (only one "open" at a time)
+// ------------------------------------------------------------
+model DaySession {
+  id        String     @id @default(cuid())
+  dayName   String     @map("day_name")
+  date      String // business date, YYYY-MM-DD (same string the UI sends/receives)
+  status    String     @default("open")
+  openedAt  DateTime   @default(now()) @map("opened_at")
+  closedAt  DateTime?  @map("closed_at")
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  sales Sale[]
+  notes DailyNote[]
+
+  @@index([status])
+  @@index([date])
+  @@map("day_sessions")
+}
+
+// ------------------------------------------------------------
+// Sales
+// ------------------------------------------------------------
+model Sale {
+  id            String    @id @default(cuid())
+  saleNumber    String    @unique @map("sale_number") // e.g. INV-00001
+  sessionId     String    @map("session_id")
+  session       DaySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  customerId    String?   @map("customer_id")
+  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  totalAmount   Decimal   @map("total_amount")
+  paymentMethod String    @default("cash") @map("payment_method") // cash | card
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  items SaleItem[]
+
+  @@index([sessionId])
+  @@index([customerId])
+  @@map("sales")
+}
+
+// ------------------------------------------------------------
+// Sale items — one line per product/service. product_name,
+// product_description, unit_cost and unit_price are SNAPSHOTS so
+// historical reports stay accurate even if a product is renamed,
+// re-described or deleted later.
+// product_id is nullable + ON DELETE SET NULL: null + isManual=true
+// → free-text/service item (no inventory); null + isManual=false
+// → the product was later deleted (snapshot preserved).
+// unit_cost comes from FIFO purchase batches at sale time.
+// ------------------------------------------------------------
+model SaleItem {
+  id                 String   @id @default(cuid())
+  saleId             String   @map("sale_id")
+  sale               Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId          String?  @map("product_id")
+  product            Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName        String   @map("product_name") // snapshot of product name / manual text
+  productBrand       String?  @map("product_brand") // snapshot of product brand
+  productDescription String?  @map("product_description") // snapshot of description/specs
+  isManual           Boolean  @default(false) @map("is_manual")
+  quantity           Int
+  unitCost           Decimal  @map("unit_cost") // FIFO snapshot cost (0 for manual items)
+  unitPrice          Decimal  @map("unit_price") // snapshot of selling price
+  subtotal           Decimal
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([saleId])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+// ------------------------------------------------------------
+// Customers + transactions (credit / payment → balance)
+// Balance = Σ credit − Σ payment  (computed, never stored)
+// ------------------------------------------------------------
+model Customer {
+  id           String               @id @default(cuid())
+  name         String
+  phone        String?
+  notes        String?
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  transactions CustomerTransaction[]
+  sales        Sale[]
+
+  @@index([name])
+  @@map("customers")
+}
+
+model CustomerTransaction {
+  id         String   @id @default(cuid())
+  customerId String   @map("customer_id")
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type       String // "credit" | "payment"
+  amount     Decimal
+  note       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([customerId])
+  @@map("customer_transactions")
+}
+
+// ------------------------------------------------------------
+// Single-row counter for invoice numbers (INV-00001 …).
+// Incremented INSIDE the sale transaction (no gaps, no dupes).
+// ------------------------------------------------------------
+model Counter {
+  id    Int @id @default(1)
+  value Int @default(0)
+
+  @@map("counters")
+}

@@ -1,0 +1,51 @@
+# ============================================================
+# Blue Mobile — Render Blueprint (https://render.com)
+# ------------------------------------------------------------
+# Deploys EVERYTHING with one click:
+#   1. PostgreSQL database ("blue-mobile-db")
+#   2. Web service running the backend, which ALSO serves the
+#      frontend (same origin → simplest, most secure cookies)
+#
+# Before the first deploy, in the Render dashboard set:
+#   ADMIN_USERNAME  (default: admin)
+#   ADMIN_PASSWORD  (REQUIRED — the seed refuses to run without it
+#                    in production; the build fails with a clear
+#                    message until you set it)
+#   FRONTEND_URL    (only needed if you ALSO host the frontend on
+#                    Netlify or another domain)
+# ============================================================
+
+databases:
+  - name: blue-mobile-db
+    plan: free # choose the plan you want (free / starter / ...)
+    databaseName: blue_mobile
+
+services:
+  - type: web
+    name: blue-mobile
+    runtime: node
+    plan: free # choose the plan you want (free / starter / ...)
+    # rootDir omitted → deploys from the repository root so the
+    # frontend/ folder is available to be served by the backend.
+    buildCommand: cd backend && npm install && npx prisma generate && npx prisma migrate deploy && npm run seed
+    startCommand: cd backend && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: blue-mobile-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true # a random secret is generated once at creation
+      - key: JWT_EXPIRES_IN
+        value: 12h
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false # REQUIRED: set it in the dashboard before first deploy
+      - key: FRONTEND_URL
+        sync: false # optional: your Netlify/other frontend origin

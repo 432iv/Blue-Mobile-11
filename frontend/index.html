@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Blue Mobile — POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="vendor/html5-qrcode.min.js"></script>
+<style>
+/* ============================================================
+   NEXUS POS — DESIGN TOKENS
+   Signature concept: a modern glass POS console whose numeric
+   data (prices, totals, ledger rows) is set in a monospace
+   "receipt tape" style with a perforated edge, echoing the
+   printed till-roll of a real electronics-shop counter.
+   ============================================================ */
+:root{
+  --bg-deep:#0b1220;
+  --bg-deep-2:#0e1626;
+  --surface:rgba(255,255,255,0.055);
+  --surface-solid:#131b2e;
+  --surface-strong:rgba(255,255,255,0.09);
+  --border-glass:rgba(148,163,184,0.16);
+  --text-primary:#e8edf7;
+  --text-muted:#8b9ab3;
+  --text-faint:#5b6a85;
+  --accent-cyan:#2fd8c6;
+  --accent-cyan-2:#22a6d9;
+  --accent-amber:#f5b942;
+  --accent-rose:#f2556b;
+  --accent-violet:#a78bfa;
+  --shadow-soft:0 20px 60px -20px rgba(0,0,0,0.55);
+  --shadow-card:0 10px 30px -12px rgba(0,0,0,0.45);
+  --radius-lg:22px;
+  --radius-md:14px;
+  --radius-sm:9px;
+  --font-display:'Cairo',sans-serif;
+  --font-body-en:'Inter',sans-serif;
+  --font-body-ar:'Cairo',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --nav-w:230px;
+}
+[data-theme="light"]{
+  --bg-deep:#eef2f9;
+  --bg-deep-2:#e6ecf6;
+  --surface:rgba(255,255,255,0.75);
+  --surface-solid:#ffffff;
+  --surface-strong:rgba(255,255,255,0.95);
+  --border-glass:rgba(30,41,59,0.10);
+  --text-primary:#182236;
+  --text-muted:#5a6a85;
+  --text-faint:#93a1b8;
+  --shadow-soft:0 20px 50px -22px rgba(30,41,59,0.25);
+  --shadow-card:0 10px 26px -14px rgba(30,41,59,0.18);
+}
+
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+  background:
+    radial-gradient(circle at 15% 0%, rgba(47,216,198,0.10), transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(167,139,250,0.10), transparent 40%),
+    var(--bg-deep);
+  color:var(--text-primary);
+  font-family:var(--font-body-en);
+  min-height:100vh;
+  overflow-x:hidden;
+  transition:background .4s ease, color .4s ease;
+}
+body.lang-ar{ font-family:var(--font-body-ar); }
+[dir="rtl"] body{ font-family:var(--font-body-ar); }
+h1,h2,h3,.brand,.nav-label,button,.btn{ font-family:var(--font-display); }
+.mono{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; letter-spacing:.2px; }
+
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--border-glass);border-radius:10px;}
+
+button{ cursor:pointer; border:none; background:none; color:inherit; font-size:1em; }
+input,select{ font-family:inherit; color:inherit; }
+
+/* ---------- Layout shell ---------- */
+#app{
+  display:flex;
+  min-height:100vh;
+}
+[dir="rtl"] #app{ flex-direction:row-reverse; }
+
+/* Sidebar / bottom-nav */
+#sidebar{
+  width:var(--nav-w);
+  flex-shrink:0;
+  padding:26px 18px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  background:var(--surface);
+  backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+  border-inline-end:1px solid var(--border-glass);
+  position:sticky; top:0; height:100vh;
+  z-index:40;
+}
+.brand{
+  display:flex; align-items:center; gap:10px;
+  font-size:1.28rem; font-weight:800; letter-spacing:.3px;
+  padding:6px 10px 26px 10px;
+  color:var(--text-primary);
+}
+.brand .dot{
+  width:11px;height:11px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent-cyan),var(--accent-cyan-2));
+  box-shadow:0 0 0 4px rgba(47,216,198,0.15), 0 0 14px rgba(47,216,198,0.7);
+  animation:pulseDot 2.4s ease-in-out infinite;
+}
+@keyframes pulseDot{
+  0%,100%{ box-shadow:0 0 0 4px rgba(47,216,198,0.15), 0 0 10px rgba(47,216,198,0.55);}
+  50%{ box-shadow:0 0 0 7px rgba(47,216,198,0.08), 0 0 20px rgba(47,216,198,0.9);}
+}
+.nav-item{
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px; border-radius:var(--radius-md);
+  color:var(--text-muted); font-weight:600; font-size:.95rem;
+  transition:all .25s ease; position:relative;
+}
+.nav-item svg{ width:19px; height:19px; flex-shrink:0; }
+.nav-item:hover{ color:var(--text-primary); background:var(--surface-strong); }
+.nav-item.active{
+  color:#04211f;
+  background:linear-gradient(135deg,var(--accent-cyan),var(--accent-cyan-2));
+  box-shadow:0 8px 20px -8px rgba(47,216,198,0.6);
+}
+.nav-item.active svg{ filter:none; }
+#sidebar-footer{ margin-top:auto; display:flex; flex-direction:column; gap:10px; }
+.session-pill{
+  display:flex; align-items:center; gap:8px;
+  padding:10px 12px; border-radius:var(--radius-md);
+  background:var(--surface-strong); border:1px solid var(--border-glass);
+  font-size:.78rem; color:var(--text-muted);
+}
+.session-pill .led{ width:8px;height:8px;border-radius:50%; background:var(--text-faint); flex-shrink:0; }
+.session-pill.live .led{ background:var(--accent-cyan); box-shadow:0 0 8px var(--accent-cyan); animation:pulseDot 2s infinite; }
+.session-pill strong{ color:var(--text-primary); font-family:var(--font-mono); }
+
+/* Main area */
+#main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+#topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:20px 30px; gap:16px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border-glass);
+  position:sticky; top:0; backdrop-filter:blur(14px);
+  background:color-mix(in srgb, var(--bg-deep) 70%, transparent);
+  z-index:30;
+}
+#page-title{ font-size:1.35rem; font-weight:800; }
+#page-subtitle{ font-size:.82rem; color:var(--text-muted); margin-top:2px; font-weight:500; }
+.top-actions{ display:flex; align-items:center; gap:10px; }
+.icon-btn{
+  width:42px; height:42px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--surface-strong); border:1px solid var(--border-glass);
+  color:var(--text-primary); transition:all .2s ease;
+}
+.icon-btn svg{ width:18px; height:18px; }
+.icon-btn:hover{ transform:translateY(-2px); box-shadow:var(--shadow-card); }
+
+.btn{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:11px 20px; border-radius:12px; font-weight:700; font-size:.88rem;
+  transition:all .22s ease; white-space:nowrap;
+}
+.btn svg{ width:16px;height:16px; }
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent-cyan),var(--accent-cyan-2));
+  color:#04211f; box-shadow:0 10px 22px -10px rgba(47,216,198,0.65);
+}
+.btn-primary:hover{ transform:translateY(-2px); box-shadow:0 14px 26px -10px rgba(47,216,198,0.8); }
+.btn-ghost{ background:var(--surface-strong); border:1px solid var(--border-glass); color:var(--text-primary); }
+.btn-ghost:hover{ background:var(--surface); transform:translateY(-1px); }
+.btn-danger{ background:linear-gradient(135deg,var(--accent-rose),#c23652); color:#fff; }
+.btn-danger:hover{ transform:translateY(-2px); box-shadow:0 12px 22px -10px rgba(242,85,107,0.6); }
+.btn-lg{ padding:16px 28px; font-size:1rem; border-radius:16px; }
+.btn:disabled{ opacity:.45; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
+
+#content{ padding:26px 30px 60px; flex:1; }
+.section{ display:none; animation:fadeSlide .45s ease; }
+.section.active{ display:block; }
+@keyframes fadeSlide{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+/* ---------- Glass cards ---------- */
+.glass-card{
+  background:var(--surface);
+  backdrop-filter:blur(16px) saturate(150%);
+  -webkit-backdrop-filter:blur(16px) saturate(150%);
+  border:1px solid var(--border-glass);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-card);
+}
+
+/* Dashboard stat cards */
+.stat-grid{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:26px;
+}
+.stat-card{
+  padding:22px; position:relative; overflow:hidden;
+  animation:cardIn .55s cubic-bezier(.22,1,.36,1) both;
+}
+.stat-card:nth-child(1){animation-delay:.02s}
+.stat-card:nth-child(2){animation-delay:.09s}
+.stat-card:nth-child(3){animation-delay:.16s}
+.stat-card:nth-child(4){animation-delay:.23s}
+@keyframes cardIn{ from{opacity:0; transform:translateY(16px) scale(.97);} to{opacity:1; transform:translateY(0) scale(1);} }
+.stat-card::after{
+  content:''; position:absolute; inset:auto -30% -60% auto; width:160px; height:160px;
+  border-radius:50%; background:radial-gradient(circle, var(--glow,rgba(47,216,198,.25)), transparent 70%);
+  pointer-events:none;
+}
+.stat-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.stat-icon{
+  width:42px;height:42px;border-radius:12px; display:flex; align-items:center; justify-content:center;
+  background:var(--icon-bg,rgba(47,216,198,.15)); color:var(--icon-fg,var(--accent-cyan));
+}
+.stat-icon svg{ width:20px;height:20px; }
+.stat-label{ font-size:.78rem; color:var(--text-muted); font-weight:600; }
+.stat-value{ font-family:var(--font-mono); font-size:1.9rem; font-weight:700; letter-spacing:.3px; }
+.stat-value small{ font-size:1rem; color:var(--text-muted); font-weight:500; }
+
+.two-col{ display:grid; grid-template-columns:1.4fr 1fr; gap:20px; }
+.panel{ padding:22px; }
+.panel h3{ font-size:1.02rem; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.empty-state{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px; padding:36px 16px; color:var(--text-muted); }
+.empty-state svg{ width:52px;height:52px; opacity:.5; }
+.empty-state strong{ color:var(--text-primary); font-size:1.02rem; }
+
+/* Ticket / perforated receipt styling for numeric ledger rows */
+.receipt-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 4px; border-bottom:1px dashed var(--border-glass);
+  font-size:.85rem;
+}
+.receipt-row:last-child{ border-bottom:none; }
+.receipt-row span:first-child{ color:var(--text-muted); }
+.receipt-row .amt{ font-family:var(--font-mono); font-weight:600; }
+
+/* Forms */
+.form-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+.field{ display:flex; flex-direction:column; gap:6px; }
+.field.full{ grid-column:1 / -1; }
+.field label{ font-size:.8rem; font-weight:600; color:var(--text-muted); }
+.field input[type="text"],
+.field input[type="number"],
+.field input[type="date"],
+.field select{
+  padding:12px 14px; border-radius:12px; border:1px solid var(--border-glass);
+  background:var(--surface-strong); color:var(--text-primary); font-size:.95rem;
+  transition:border-color .2s ease, box-shadow .2s ease;
+}
+.field input:focus, .field select:focus{
+  outline:none; border-color:var(--accent-cyan); box-shadow:0 0 0 4px rgba(47,216,198,0.15);
+}
+.field input[inputmode="decimal"], .field input[type="number"]{ font-family:var(--font-mono); }
+.radio-group{ display:flex; gap:10px; }
+.radio-chip{
+  flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:12px; border-radius:12px; border:1px solid var(--border-glass);
+  background:var(--surface-strong); font-weight:600; font-size:.9rem; color:var(--text-muted);
+  transition:all .2s ease;
+}
+.radio-chip svg{ width:16px;height:16px; }
+.radio-chip.selected{
+  border-color:var(--accent-cyan); color:var(--text-primary);
+  background:linear-gradient(135deg,rgba(47,216,198,0.18),rgba(34,166,217,0.10));
+  box-shadow:0 0 0 3px rgba(47,216,198,0.12);
+}
+.profit-preview{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; border-radius:12px; margin-top:4px;
+  background:linear-gradient(135deg,rgba(47,216,198,0.12),rgba(167,139,250,0.08));
+  border:1px solid var(--border-glass);
+}
+.profit-preview .val{ font-family:var(--font-mono); font-weight:700; font-size:1.15rem; }
+.clock-badge{
+  display:flex; align-items:center; gap:6px; font-family:var(--font-mono);
+  font-size:.8rem; color:var(--text-muted); padding:8px 12px; border-radius:10px;
+  background:var(--surface-strong); border:1px solid var(--border-glass);
+}
+.clock-badge svg{ width:14px;height:14px; }
+
+/* Tables */
+.table-wrap{ overflow-x:auto; }
+table{ width:100%; border-collapse:collapse; font-size:.86rem; min-width:760px; }
+thead th{
+  text-align:start; padding:12px 14px; color:var(--text-muted); font-weight:600;
+  font-size:.74rem; text-transform:uppercase; letter-spacing:.6px;
+  border-bottom:1px solid var(--border-glass);
+}
+tbody td{ padding:13px 14px; border-bottom:1px solid var(--border-glass); }
+tbody tr{ transition:background .18s ease; }
+tbody tr:hover{ background:var(--surface-strong); }
+td.num{ font-family:var(--font-mono); }
+.pill{
+  display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:20px;
+  font-size:.74rem; font-weight:700;
+}
+.pill.cash{ background:rgba(245,185,66,0.16); color:var(--accent-amber); }
+.pill.card{ background:rgba(34,166,217,0.16); color:var(--accent-cyan-2); }
+.pill.profit-pos{ background:rgba(47,216,198,0.16); color:var(--accent-cyan); }
+.row-actions{ display:flex; gap:6px; }
+.row-actions button{
+  width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+  background:var(--surface-strong); border:1px solid var(--border-glass); color:var(--text-muted);
+  transition:all .2s ease;
+}
+.row-actions button svg{ width:14px;height:14px; }
+.row-actions .edit-btn:hover{ color:var(--accent-cyan-2); border-color:var(--accent-cyan-2); }
+.row-actions .del-btn:hover{ color:var(--accent-rose); border-color:var(--accent-rose); }
+
+/* Products grid */
+.product-toolbar{ display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap; align-items:center; }
+.search-wrap{ position:relative; flex:1; min-width:220px; }
+.search-wrap svg{ position:absolute; inset-inline-start:14px; top:50%; transform:translateY(-50%); width:16px;height:16px; color:var(--text-faint); }
+.search-wrap input{ width:100%; padding:12px 14px 12px 40px; border-radius:12px; border:1px solid var(--border-glass); background:var(--surface-strong); color:var(--text-primary); }
+[dir="rtl"] .search-wrap input{ padding:12px 40px 12px 14px; }
+[dir="rtl"] .search-wrap svg{ inset-inline-start:auto; inset-inline-end:14px; }
+.product-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
+.product-card{
+  padding:16px; display:flex; align-items:center; gap:12px; animation:cardIn .4s ease both;
+}
+.product-card .p-icon{
+  width:40px;height:40px; border-radius:10px; flex-shrink:0;
+  background:linear-gradient(135deg,rgba(47,216,198,0.2),rgba(167,139,250,0.15));
+  display:flex; align-items:center; justify-content:center; color:var(--accent-cyan);
+}
+.product-card .p-icon svg{ width:19px;height:19px; }
+.product-card .p-name{ font-weight:700; flex:1; font-size:.92rem; }
+.product-card .p-actions{ display:flex; gap:6px; }
+
+/* Reports */
+.report-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+.report-card{ padding:20px; cursor:pointer; transition:all .22s ease; animation:cardIn .4s ease both; }
+.report-card:hover{ transform:translateY(-4px); box-shadow:var(--shadow-soft); border-color:var(--accent-cyan); }
+.report-card .rc-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.report-card .rc-day{ font-weight:800; font-size:1.05rem; }
+.report-card .rc-date{ font-size:.78rem; color:var(--text-muted); }
+
+/* Settings */
+.settings-list{ display:flex; flex-direction:column; gap:14px; max-width:640px; }
+.settings-row{
+  display:flex; align-items:center; justify-content:space-between; padding:18px 20px;
+}
+.settings-row .s-info strong{ display:block; font-size:.95rem; margin-bottom:3px; }
+.settings-row .s-info span{ font-size:.8rem; color:var(--text-muted); }
+.switch-toggle{
+  width:52px; height:30px; border-radius:20px; background:var(--surface-strong);
+  border:1px solid var(--border-glass); position:relative; transition:all .25s ease;
+}
+.switch-toggle .knob{
+  position:absolute; top:3px; inset-inline-start:3px; width:22px; height:22px; border-radius:50%;
+  background:linear-gradient(135deg,var(--accent-cyan),var(--accent-cyan-2)); transition:all .25s ease;
+}
+.switch-toggle.on .knob{ inset-inline-start:27px; }
+.lang-toggle-btns{ display:flex; gap:8px; }
+.lang-toggle-btns button{
+  padding:9px 16px; border-radius:10px; border:1px solid var(--border-glass); background:var(--surface-strong); font-weight:700; font-size:.85rem;
+}
+.lang-toggle-btns button.active{ background:linear-gradient(135deg,var(--accent-cyan),var(--accent-cyan-2)); color:#04211f; }
+
+/* Modals */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(4,8,16,0.55); backdrop-filter:blur(4px);
+  display:none; align-items:center; justify-content:center; z-index:100; padding:20px;
+}
+.modal-overlay.active{ display:flex; animation:overlayIn .25s ease; }
+@keyframes overlayIn{ from{opacity:0;} to{opacity:1;} }
+.modal{
+  width:100%; max-width:480px; padding:28px; max-height:88vh; overflow-y:auto;
+  animation:modalIn .32s cubic-bezier(.22,1,.36,1);
+  background:var(--surface-solid); border:1px solid var(--border-glass); border-radius:var(--radius-lg); box-shadow:var(--shadow-soft);
+}
+.modal.wide{ max-width:640px; }
+@keyframes modalIn{ from{opacity:0; transform:translateY(24px) scale(.96);} to{opacity:1; transform:translateY(0) scale(1);} }
+.modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.modal-head h3{ font-size:1.15rem; }
+.modal-close{ width:34px;height:34px; border-radius:50%; background:var(--surface-strong); display:flex; align-items:center; justify-content:center; }
+.modal-close svg{ width:15px;height:15px; }
+.modal-actions{ display:flex; gap:10px; margin-top:22px; justify-content:flex-end; }
+.warn-box{
+  display:flex; gap:12px; padding:14px; border-radius:12px; background:rgba(245,185,66,0.1); border:1px solid rgba(245,185,66,0.3); margin-bottom:16px;
+}
+.warn-box svg{ width:22px;height:22px; color:var(--accent-amber); flex-shrink:0; }
+.warn-box p{ font-size:.85rem; color:var(--text-muted); }
+
+/* Close-day report receipt */
+.final-receipt{ font-family:var(--font-mono); font-size:.88rem; }
+.final-receipt .fr-line{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px dashed var(--border-glass); }
+.final-receipt .fr-total{ border-bottom:none; border-top:2px solid var(--border-glass); margin-top:6px; padding-top:12px; font-weight:700; font-size:1.05rem; }
+
+/* Toasts */
+#toast-stack{ position:fixed; bottom:26px; inset-inline-end:26px; z-index:200; display:flex; flex-direction:column; gap:10px; align-items:flex-end; }
+[dir="rtl"] #toast-stack{ align-items:flex-start; }
+.toast{
+  display:flex; align-items:center; gap:10px; padding:14px 18px; border-radius:14px;
+  background:var(--surface-solid); border:1px solid var(--border-glass); box-shadow:var(--shadow-soft);
+  font-size:.87rem; font-weight:600; animation:toastIn .3s ease, toastOut .3s ease 2.7s forwards;
+  max-width:320px;
+}
+.toast svg{ width:17px;height:17px; flex-shrink:0; }
+.toast.success svg{ color:var(--accent-cyan); }
+.toast.error svg{ color:var(--accent-rose); }
+.toast.info svg{ color:var(--accent-violet); }
+@keyframes toastIn{ from{opacity:0; transform:translateX(30px);} to{opacity:1; transform:translateX(0);} }
+[dir="rtl"] .toast{ animation-name:toastInRtl, toastOut; }
+@keyframes toastInRtl{ from{opacity:0; transform:translateX(-30px);} to{opacity:1; transform:translateX(0);} }
+@keyframes toastOut{ to{ opacity:0; transform:translateY(-8px); } }
+
+/* No-day guard */
+.guard-wrap{ display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:80px 20px; gap:16px; }
+.guard-wrap svg{ width:64px;height:64px; color:var(--accent-cyan); opacity:.8; }
+.guard-wrap h3{ font-size:1.3rem; }
+.guard-wrap p{ color:var(--text-muted); max-width:380px; }
+
+/* Responsive */
+@media (max-width: 980px){
+  .stat-grid{ grid-template-columns:repeat(2,1fr); }
+  .two-col{ grid-template-columns:1fr; }
+  .form-grid{ grid-template-columns:1fr; }
+}
+@media (max-width: 760px){
+  #sidebar{
+    position:fixed; bottom:0; inset-inline:0; top:auto; height:auto; width:100%;
+    flex-direction:row; padding:8px 6px; gap:2px; justify-content:space-between;
+    border-inline-end:none; border-top:1px solid var(--border-glass);
+    padding-bottom:calc(8px + env(safe-area-inset-bottom));
+  }
+  .brand, #sidebar-footer{ display:none; }
+  .nav-item{ flex-direction:column; gap:4px; font-size:.62rem; padding:8px 4px; flex:1; text-align:center; border-radius:12px; }
+  .nav-item span{ white-space:nowrap; }
+  #main{ padding-bottom:78px; }
+  #content{ padding:18px 16px 40px; }
+  #topbar{ padding:16px; }
+  .stat-grid{ grid-template-columns:1fr 1fr; gap:12px; }
+  .stat-value{ font-size:1.4rem; }
+  table{ min-width:640px; }
+}
+@media (max-width:460px){
+  .stat-grid{ grid-template-columns:1fr; }
+  #page-title{ font-size:1.1rem; }
+}
+
+/* Inventory / Product Management */
+.filter-row{ display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+.filter-row select{ padding:10px 14px; border-radius:12px; border:1px solid var(--border-glass); background:var(--surface-strong); color:var(--text-primary); font-size:.88rem; font-weight:600; min-width:160px; transition:border-color .2s ease, box-shadow .2s ease; }
+.filter-row select:focus{ outline:none; border-color:var(--accent-cyan); box-shadow:0 0 0 4px rgba(47,216,198,0.15); }
+.stock-badge{ display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:16px; font-size:.72rem; font-weight:700; font-family:var(--font-mono); }
+.stock-badge.ok{ background:rgba(47,216,198,0.14); color:var(--accent-cyan); }
+.stock-badge.low{ background:rgba(245,185,66,0.16); color:var(--accent-amber); }
+.stock-badge.out{ background:rgba(242,85,107,0.14); color:var(--accent-rose); }
+.product-card{ flex-wrap:wrap; min-height:80px; }
+.product-card .p-meta{ display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
+.product-card .p-category{ font-size:.7rem; color:var(--accent-cyan); font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+.product-card .p-brand{ font-size:.72rem; color:var(--text-faint); }
+.product-card .p-prices{ display:flex; gap:12px; margin-top:4px; }
+.product-card .p-price{ font-family:var(--font-mono); font-size:.82rem; font-weight:700; }
+.product-card .p-stock{ margin-top:2px; }
+.product-img{ width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0;background:var(--surface-strong); }
+.product-img-placeholder{ width:44px;height:44px;border-radius:10px;flex-shrink:0;background:linear-gradient(135deg,rgba(47,216,198,0.2),rgba(167,139,250,0.15));display:flex;align-items:center;justify-content:center;color:var(--accent-cyan); }
+.low-stock-alert{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-radius:14px; background:rgba(245,185,66,0.1); border:1px solid rgba(245,185,66,0.3); margin-bottom:18px; font-size:.87rem; color:var(--accent-amber); font-weight:600; }
+.low-stock-alert svg{ width:20px;height:20px; flex-shrink:0; }
+.stock-display{ display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:10px; background:var(--surface-strong); border:1px solid var(--border-glass); font-size:.82rem; margin-bottom:10px; }
+.stock-display svg{ width:15px;height:15px; }
+.stock-display strong{ font-family:var(--font-mono); }
+
+/* Barcode scan wrapper */
+.barcode-scan-wrap{ position:relative; display:flex; }
+.barcode-scan-wrap input{ flex:1; padding-right:46px; }
+[dir="rtl"] .barcode-scan-wrap input{ padding-right:14px; padding-left:46px; }
+.barcode-scan-btn{
+  position:absolute; top:50%; inset-inline-end:6px; transform:translateY(-50%);
+  width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,var(--accent-cyan),var(--accent-cyan-2)); color:#04211f;
+  transition:all .2s ease;
+}
+.barcode-scan-btn svg{ width:18px; height:18px; }
+.barcode-scan-btn:hover{ transform:translateY(-50%) scale(1.08); box-shadow:0 4px 12px -4px rgba(47,216,198,0.6); }
+.barcode-scan-btn:active{ transform:translateY(-50%) scale(0.95); }
+
+/* Barcode scan overlay */
+.barcode-scan-overlay{
+  position:fixed; inset:0; z-index:150; background:rgba(4,8,16,0.85);
+  display:none; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+}
+.barcode-scan-overlay.active{ display:flex; }
+.barcode-scan-overlay .scan-viewport{
+  width:min(90vw, 360px); aspect-ratio:4/3; border-radius:var(--radius-lg); overflow:hidden;
+  position:relative; background:#000; border:2px solid var(--accent-cyan);
+}
+.barcode-scan-overlay .scan-viewport video{ width:100%; height:100%; object-fit:cover; }
+.barcode-scan-overlay .scan-line{
+  position:absolute; left:10%; right:10%; height:3px; top:50%; transform:translateY(-50%);
+  background:var(--accent-cyan); border-radius:2px; box-shadow:0 0 14px var(--accent-cyan);
+  animation:scanPulse 1.8s ease-in-out infinite;
+}
+@keyframes scanPulse{ 0%,100%{ opacity:.35; } 50%{ opacity:1; } }
+.barcode-scan-overlay .scan-hint{ color:var(--text-muted); font-size:.88rem; font-weight:600; }
+.barcode-scan-overlay .scan-cancel{
+  padding:12px 24px; border-radius:12px; background:var(--surface-strong); border:1px solid var(--border-glass);
+  color:var(--text-primary); font-weight:700; font-size:.9rem;
+}
+
+/* Tabs */
+.tabs{ display:flex; gap:4px; margin-bottom:20px; background:var(--surface-strong); border-radius:var(--radius-md); padding:4px; border:1px solid var(--border-glass); overflow-x:auto; }
+.tab-btn{
+  flex:1; padding:10px 16px; border-radius:10px; font-weight:700; font-size:.85rem;
+  color:var(--text-muted); transition:all .22s ease; white-space:nowrap; text-align:center;
+}
+.tab-btn:hover{ color:var(--text-primary); }
+.tab-btn.active{
+  background:linear-gradient(135deg,var(--accent-cyan),var(--accent-cyan-2));
+  color:#04211f; box-shadow:0 4px 12px -4px rgba(47,216,198,0.5);
+}
+
+/* Customer cards */
+.customer-card{ padding:18px; animation:cardIn .4s ease both; }
+.customer-card .c-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.customer-card .c-name{ font-weight:800; font-size:1.05rem; }
+.customer-card .c-phone{ font-size:.82rem; color:var(--text-muted); margin-bottom:8px; }
+.customer-card .c-debt{ font-family:var(--font-mono); font-size:1.3rem; font-weight:700; }
+.customer-card .c-debt.zero{ color:var(--accent-cyan); }
+.customer-card .c-debt.owed{ color:var(--accent-amber); }
+.customer-card .c-debt.overdue{ color:var(--accent-rose); }
+.customer-card .c-actions{ display:flex; gap:8px; margin-top:12px; }
+.customer-card .c-notes{ font-size:.78rem; color:var(--text-faint); margin-top:6px; }
+
+/* Debt history rows */
+.debt-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 0; border-bottom:1px dashed var(--border-glass); font-size:.85rem;
+}
+.debt-row:last-child{ border-bottom:none; }
+.debt-row .debt-type{
+  display:inline-flex; padding:3px 8px; border-radius:10px; font-size:.7rem; font-weight:700;
+}
+.debt-row .debt-type.credit{ background:rgba(245,185,66,0.14); color:var(--accent-amber); }
+.debt-row .debt-type.payment{ background:rgba(47,216,198,0.14); color:var(--accent-cyan); }
+.debt-row .debt-amt{ font-family:var(--font-mono); font-weight:700; }
+
+/* Scanner */
+.scanner-viewport{
+  width:100%; max-width:480px; aspect-ratio:4/3; margin:0 auto 20px;
+  border-radius:var(--radius-lg); overflow:hidden; position:relative;
+  background:var(--surface-strong); border:2px solid var(--border-glass);
+}
+.scanner-viewport video{ width:100%; height:100%; object-fit:cover; }
+.scanner-overlay{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+}
+.scanner-crosshair{
+  width:200px; height:3px; background:var(--accent-cyan); border-radius:2px;
+  box-shadow:0 0 12px var(--accent-cyan); animation:scannerLine 2s ease-in-out infinite;
+}
+@keyframes scannerLine{ 0%,100%{ opacity:.4; } 50%{ opacity:1; } }
+.scanner-result{
+  text-align:center; padding:20px; border-radius:var(--radius-md);
+  background:var(--surface-strong); border:1px solid var(--border-glass);
+}
+.scanner-result .sr-barcode{ font-family:var(--font-mono); font-size:1.4rem; font-weight:700; margin-bottom:8px; }
+.scanner-result .sr-product{ color:var(--accent-cyan); font-weight:600; font-size:1.1rem; }
+.scanner-result .sr-stock{ font-size:.85rem; color:var(--text-muted); margin-top:6px; }
+.scanner-no-result{ text-align:center; padding:40px; color:var(--text-muted); }
+.scanner-no-result svg{ width:48px; height:48px; margin-bottom:12px; opacity:.5; }
+
+/* Invoice number */
+.invoice-badge{
+  display:inline-flex; align-items:center; gap:6px; padding:4px 10px;
+  border-radius:10px; background:rgba(167,139,250,0.12); font-family:var(--font-mono);
+  font-size:.72rem; font-weight:700; color:var(--accent-violet);
+}
+
+/* Low stock table in reports */
+.low-stock-list{ display:flex; flex-direction:column; gap:8px; }
+.low-stock-item{
+  display:flex; align-items:center; justify-content:space-between; padding:10px 14px;
+  border-radius:10px; background:var(--surface-strong); border:1px solid var(--border-glass);
+}
+.low-stock-item .lsi-name{ font-weight:700; }
+.low-stock-item .lsi-qty{ font-family:var(--font-mono); font-weight:700; font-size:.88rem; }
+
+/* Mobile bottom-nav additions */
+@media (max-width: 760px){
+  .tabs{ gap:2px; padding:3px; }
+  .tab-btn{ padding:8px 10px; font-size:.75rem; }
+  .scanner-viewport{ max-width:100%; border-radius:var(--radius-md); }
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:.001s !important; transition-duration:.001s !important; }
+}
+
+/* ---------- Auth screens (login / offline) ---------- */
+.auth-screen{
+  position:fixed; inset:0; z-index:90; display:none; align-items:center; justify-content:center; padding:20px;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(47,216,198,0.10), transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(167,139,250,0.10), transparent 40%),
+    var(--bg-deep);
+}
+.auth-screen.active{ display:flex; }
+.auth-card{
+  width:100%; max-width:410px; padding:38px 34px; text-align:center;
+  background:var(--surface); backdrop-filter:blur(18px) saturate(150%);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);
+  border:1px solid var(--border-glass); border-radius:var(--radius-lg); box-shadow:var(--shadow-soft);
+  animation:modalIn .35s cubic-bezier(.22,1,.36,1);
+}
+.auth-card .brand{ justify-content:center; padding:0 0 6px; font-size:1.35rem; }
+.auth-card h2{ font-size:1.25rem; margin-bottom:4px; }
+.auth-sub{ color:var(--text-muted); font-size:.88rem; margin-bottom:24px; }
+.auth-card .field{ text-align:start; margin-bottom:14px; }
+.auth-error{
+  display:none; text-align:start; margin-bottom:14px; padding:11px 14px; border-radius:12px;
+  background:rgba(242,85,107,0.12); border:1px solid rgba(242,85,107,0.35);
+  color:var(--accent-rose); font-size:.84rem; font-weight:600;
+}
+.auth-error.active{ display:block; }
+.auth-meta{ margin-top:18px; font-size:.74rem; color:var(--text-faint); }
+.auth-offline-icon{ width:58px; height:58px; margin:0 auto 14px; color:var(--accent-amber); opacity:.85; }
+
+/* ---------- Global loading overlay ---------- */
+.loading-overlay{
+  position:fixed; inset:0; z-index:300; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+  background:rgba(4,8,16,0.55); backdrop-filter:blur(4px); color:var(--text-primary); font-weight:600; font-size:.9rem;
+}
+.loading-overlay.active{ display:flex; }
+.spinner{
+  width:38px; height:38px; border-radius:50%;
+  border:3px solid var(--border-glass); border-top-color:var(--accent-cyan);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+
+/* ---------- Combobox / autocomplete ---------- */
+.combobox{ position:relative; }
+.combobox > input[type="text"]{
+  width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border-glass);
+  background:var(--surface-strong); color:var(--text-primary); font-size:.95rem;
+}
+.combobox > input:focus{ outline:none; border-color:var(--accent-cyan); box-shadow:0 0 0 4px rgba(47,216,198,0.15); }
+.combobox-list{
+  position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:120;
+  max-height:300px; overflow-y:auto; border-radius:14px;
+  background:var(--surface-solid); border:1px solid var(--border-glass);
+  box-shadow:var(--shadow-soft); display:none;
+}
+.combobox-list.open{ display:block; }
+.combobox-item{
+  padding:11px 14px; cursor:pointer; border-bottom:1px dashed var(--border-glass);
+  transition:background .15s ease;
+}
+.combobox-item:last-child{ border-bottom:none; }
+.combobox-item:hover, .combobox-item.highlight{ background:var(--surface-strong); }
+.combobox-item .ci-name{ font-weight:700; font-size:.9rem; display:flex; align-items:center; gap:8px; }
+.combobox-item .ci-desc{ font-size:.76rem; color:var(--text-muted); margin-top:2px; }
+.combobox-item .ci-meta{ display:flex; gap:14px; margin-top:5px; font-family:var(--font-mono); font-size:.75rem; }
+.combobox-item .ci-stock{ color:var(--accent-amber); }
+.combobox-item .ci-price{ color:var(--accent-cyan); font-weight:700; }
+.combobox-item.manual .ci-name{ color:var(--accent-violet); }
+.combobox-item .ci-tag{
+  font-size:.62rem; font-weight:700; padding:2px 7px; border-radius:8px; letter-spacing:.4px;
+  background:rgba(167,139,250,0.16); color:var(--accent-violet); text-transform:uppercase;
+}
+.sale-selected{
+  margin-top:10px; padding:12px 14px; border-radius:12px;
+  background:linear-gradient(135deg,rgba(47,216,198,0.12),rgba(167,139,250,0.08));
+  border:1px solid var(--border-glass); display:flex; align-items:center; gap:10px;
+}
+.sale-selected .ss-name{ font-weight:700; font-size:.92rem; flex:1; }
+.sale-selected .ss-desc{ font-size:.76rem; color:var(--text-muted); }
+.sale-selected .ss-meta{ font-family:var(--font-mono); font-size:.8rem; color:var(--accent-cyan); font-weight:700; }
+.sale-selected .ss-clear{
+  width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  background:var(--surface-strong); color:var(--text-muted); font-size:.85rem;
+}
+.sale-selected .ss-clear:hover{ color:var(--accent-rose); }
+/* small description line under product name in tables/cards */
+.p-desc, .td-desc{
+  display:block; font-size:.72rem; color:var(--text-muted); font-weight:500; margin-top:2px;
+}
+.pill.manual{ background:rgba(167,139,250,0.16); color:var(--accent-violet); }
+/* daily notes */
+.note-row{
+  display:flex; align-items:center; gap:10px; padding:10px 4px;
+  border-bottom:1px dashed var(--border-glass); font-size:.87rem;
+}
+.note-row:last-child{ border-bottom:none; }
+.note-row .note-time{ font-family:var(--font-mono); font-size:.76rem; color:var(--text-faint); min-width:58px; }
+.note-row .note-text{ flex:1; }
+.note-row .note-del{
+  width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  background:var(--surface-strong); color:var(--text-faint);
+}
+.note-row .note-del:hover{ color:var(--accent-rose); }
+#daily-notes-panel{ margin-bottom:20px; }
+
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- ===================== SIDEBAR / NAV ===================== -->
+  <nav id="sidebar">
+    <div class="brand"><span class="dot"></span><span style="font-family:var(--font-body-en);direction:ltr">Blue Mobile</span></div>
+
+    <button class="nav-item active" data-nav="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
+      <span data-i18n="nav_dashboard">Dashboard</span>
+    </button>
+    <button class="nav-item" data-nav="products">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>
+      <span data-i18n="nav_products">Products</span>
+    </button>
+    <button class="nav-item" data-nav="sales">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h2l2.4 12.4a2 2 0 002 1.6h8.2a2 2 0 002-1.6L21 7H6"/><circle cx="9" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/></svg>
+      <span data-i18n="nav_sales">Sales</span>
+    </button>
+    <button class="nav-item" data-nav="reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9M12 19V5M20 19v-7"/></svg>
+      <span data-i18n="nav_reports">Reports</span>
+    </button>
+    <button class="nav-item" data-nav="customers">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      <span data-i18n="nav_customers">Customers</span>
+    </button>
+    <button class="nav-item" data-nav="scanner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+      <span data-i18n="nav_scanner">Scanner</span>
+    </button>
+    <button class="nav-item" data-nav="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <span data-i18n="nav_settings">Settings</span>
+    </button>
+
+    <div id="sidebar-footer">
+      <button class="btn btn-ghost" id="logout-btn" style="width:100%; justify-content:center;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        <span data-i18n="logout">Log Out</span>
+      </button>
+      <div class="session-pill" id="session-pill">
+        <span class="led"></span>
+        <span id="session-pill-text" data-i18n="no_active_day">No day open</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===================== MAIN ===================== -->
+  <div id="main">
+    <header id="topbar">
+      <div>
+        <div id="page-title" data-i18n="nav_dashboard">Dashboard</div>
+        <div id="page-subtitle" data-i18n="dashboard_subtitle">Live overview of today's counter activity</div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="theme-toggle" title="Toggle theme">
+          <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+        <button class="icon-btn" id="lang-toggle" title="Language">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="content">
+
+      <!-- ===================== DASHBOARD ===================== -->
+      <section class="section active" id="section-dashboard">
+        <div class="stat-grid">
+          <div class="glass-card stat-card" style="--glow:rgba(47,216,198,.28)">
+            <div class="stat-top">
+              <span class="stat-label" data-i18n="stat_sales">Today's Sales</span>
+              <span class="stat-icon" style="--icon-bg:rgba(47,216,198,.15); --icon-fg:var(--accent-cyan)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              </span>
+            </div>
+            <div class="stat-value mono" id="stat-sales">0.00</div>
+          </div>
+          <div class="glass-card stat-card" style="--glow:rgba(245,185,66,.25)">
+            <div class="stat-top">
+              <span class="stat-label" data-i18n="stat_cost">Today's Cost</span>
+              <span class="stat-icon" style="--icon-bg:rgba(245,185,66,.15); --icon-fg:var(--accent-amber)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v3"/></svg>
+              </span>
+            </div>
+            <div class="stat-value mono" id="stat-cost">0.00</div>
+          </div>
+          <div class="glass-card stat-card" style="--glow:rgba(167,139,250,.25)">
+            <div class="stat-top">
+              <span class="stat-label" data-i18n="stat_profit">Today's Profit</span>
+              <span class="stat-icon" style="--icon-bg:rgba(167,139,250,.15); --icon-fg:var(--accent-violet)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>
+              </span>
+            </div>
+            <div class="stat-value mono" id="stat-profit">0.00</div>
+          </div>
+          <div class="glass-card stat-card" style="--glow:rgba(242,85,107,.2)">
+            <div class="stat-top">
+              <span class="stat-label" data-i18n="stat_count">Number of Sales</span>
+              <span class="stat-icon" style="--icon-bg:rgba(242,85,107,.14); --icon-fg:var(--accent-rose)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H4a1 1 0 00-1 1v14a1 1 0 001 1h16a1 1 0 001-1v-9"/><path d="M12 12H4M12 16H4M17 3l4 4-4 4"/></svg>
+              </span>
+            </div>
+            <div class="stat-value mono" id="stat-count">0</div>
+          </div>
+        </div>
+
+        <div class="stat-grid" style="margin-bottom:26px;">
+          <div class="glass-card stat-card" style="--glow:rgba(47,216,198,.22)">
+            <div class="stat-top">
+              <span class="stat-label" data-i18n="stat_total_products">Total Products</span>
+              <span class="stat-icon" style="--icon-bg:rgba(47,216,198,.15); --icon-fg:var(--accent-cyan)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>
+              </span>
+            </div>
+            <div class="stat-value mono" id="stat-total-products">0</div>
+          </div>
+          <div class="glass-card stat-card" style="--glow:rgba(34,166,217,.22)">
+            <div class="stat-top">
+              <span class="stat-label" data-i18n="stat_total_stock">Total in Stock</span>
+              <span class="stat-icon" style="--icon-bg:rgba(34,166,217,.15); --icon-fg:var(--accent-cyan-2)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+              </span>
+            </div>
+            <div class="stat-value mono" id="stat-total-stock">0</div>
+          </div>
+          <div class="glass-card stat-card" style="--glow:rgba(245,185,66,.22)">
+            <div class="stat-top">
+              <span class="stat-label" data-i18n="stat_low_stock">Low Stock</span>
+              <span class="stat-icon" style="--icon-bg:rgba(245,185,66,.15); --icon-fg:var(--accent-amber)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+              </span>
+            </div>
+            <div class="stat-value mono" id="stat-low-stock">0</div>
+          </div>
+          <div class="glass-card stat-card" style="--glow:rgba(167,139,250,.22)">
+            <div class="stat-top">
+              <span class="stat-label" data-i18n="stat_inventory_value">Inventory Value</span>
+              <span class="stat-icon" style="--icon-bg:rgba(167,139,250,.15); --icon-fg:var(--accent-violet)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v3"/></svg>
+              </span>
+            </div>
+            <div class="stat-value mono" id="stat-inventory-value">0.00</div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="glass-card panel">
+            <h3 data-i18n="recent_activity">Recent Activity</h3>
+            <div id="dash-recent"></div>
+          </div>
+          <div class="glass-card panel">
+            <h3 data-i18n="day_status">Day Status</h3>
+            <div id="dash-day-status"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== PRODUCTS ===================== -->
+      <section class="section" id="section-products">
+        <div id="low-stock-alerts"></div>
+        <div class="product-toolbar">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="product-search" data-i18n-placeholder="search_products" placeholder="Search products...">
+          </div>
+          <button class="btn btn-primary" id="add-product-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            <span data-i18n="add_product">Add Product</span>
+          </button>
+        </div>
+        <div class="filter-row">
+          <select id="category-filter"></select>
+          <select id="brand-filter"></select>
+        </div>
+        <div class="product-grid" id="product-grid"></div>
+      </section>
+
+      <!-- ===================== SALES ===================== -->
+      <section class="section" id="section-sales">
+        <div id="sales-guard" class="guard-wrap" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <h3 data-i18n="no_day_title">No day is open yet</h3>
+          <p data-i18n="no_day_desc">Start a new day to begin recording sales for your shop.</p>
+          <button class="btn btn-primary btn-lg" id="guard-start-day-btn">
+            <span data-i18n="start_new_day">Start New Day</span>
+          </button>
+        </div>
+
+        <div id="sales-active-wrap" style="display:none;">
+          <div class="two-col" style="grid-template-columns:1fr 1.3fr; margin-bottom:20px;">
+            <div class="glass-card panel">
+              <h3 data-i18n="new_sale">New Sale</h3>
+              <form id="sale-form">
+                <div class="form-grid">
+                  <div class="field full">
+                    <label data-i18n="search_product">Product or Service</label>
+                    <div class="combobox" id="sale-combobox">
+                      <input type="text" id="sale-search" autocomplete="off" data-i18n-placeholder="search_product_ph" placeholder="Search product or type a service...">
+                      <input type="hidden" id="sale-product-id">
+                      <div class="combobox-list" id="sale-search-list"></div>
+                    </div>
+                    <div class="sale-selected" id="sale-selected-info" style="display:none;"></div>
+                  </div>
+                  <div class="field">
+                    <label data-i18n="field_qty">Quantity</label>
+                    <input type="number" id="sale-qty" inputmode="numeric" min="1" max="10000" value="1" required>
+                  </div>
+                  <div class="field full">
+                    <label data-i18n="field_sell">Selling Price</label>
+                    <input type="number" id="sale-sell" inputmode="decimal" min="0" max="10000" step="0.01" placeholder="0.00" required>
+                  </div>
+                  <div class="field full">
+                    <label data-i18n="field_payment">Payment Method</label>
+                    <div class="radio-group">
+                      <div class="radio-chip selected" data-pay="cash">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>
+                        <span data-i18n="pay_cash">Cash</span>
+                      </div>
+                      <div class="radio-chip" data-pay="card">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                        <span data-i18n="pay_card">Bank Card</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field full">
+                    <div class="profit-preview">
+                      <span data-i18n="field_profit">Profit</span>
+                      <span class="val mono" id="sale-profit-preview">0.00</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-actions" style="justify-content:space-between; align-items:center; margin-top:18px;">
+                  <div class="clock-badge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                    <span id="live-clock">--:--:--</span>
+                  </div>
+                  <button type="submit" class="btn btn-primary" id="sale-submit-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    <span data-i18n="record_sale">Record Sale</span>
+                  </button>
+                </div>
+                <input type="hidden" id="sale-edit-id">
+              </form>
+            </div>
+
+            <div class="glass-card panel">
+              <h3 data-i18n="live_summary">Live Summary</h3>
+              <div id="live-summary"></div>
+              <button class="btn btn-danger btn-lg" id="close-day-btn" style="width:100%; margin-top:18px; justify-content:center;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                <span data-i18n="close_day">Close Day</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="glass-card panel" id="daily-notes-panel">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 12h6M9 16h6"/></svg>
+              <span data-i18n="daily_notes">Daily Notes</span>
+            </h3>
+            <div id="daily-notes-list"></div>
+            <div style="display:flex; gap:10px; margin-top:12px;">
+              <input type="text" id="note-input" data-i18n-placeholder="note_placeholder" placeholder="e.g. Gave my brother 100 LYD" style="flex:1; padding:11px 14px; border-radius:12px; border:1px solid var(--border-glass); background:var(--surface-strong); color:var(--text-primary);">
+              <button class="btn btn-primary" id="note-add-btn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
+                <span data-i18n="add_note">Add Note</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="glass-card panel">
+            <h3 data-i18n="sales_table_title">Today's Sales</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th data-i18n="col_invoice">Invoice</th>
+                    <th data-i18n="field_product">Product</th>
+                    <th data-i18n="field_qty">Quantity</th>
+                    <th data-i18n="field_cost">Cost Price</th>
+                    <th data-i18n="field_sell">Selling Price</th>
+                    <th data-i18n="field_profit">Profit</th>
+                    <th data-i18n="field_payment">Payment</th>
+                    <th data-i18n="field_time">Time</th>
+                    <th data-i18n="col_actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="sales-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== REPORTS ===================== -->
+      <section class="section" id="section-reports">
+        <div class="tabs" id="reports-tabs">
+          <button class="tab-btn active" data-tab="daily">Daily Reports</button>
+          <button class="tab-btn" data-tab="monthly">Monthly Summary</button>
+          <button class="tab-btn" data-tab="best-sellers">Best Sellers</button>
+          <button class="tab-btn" data-tab="low-stock">Low Stock</button>
+        </div>
+        <div id="report-tab-daily"><div id="report-grid" class="report-grid"></div></div>
+        <div id="report-tab-monthly" style="display:none;"></div>
+        <div id="report-tab-best-sellers" style="display:none;"></div>
+        <div id="report-tab-low-stock" style="display:none;"></div>
+      </section>
+
+      <!-- ===================== CUSTOMERS ===================== -->
+      <section class="section" id="section-customers">
+        <div class="product-toolbar">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="text" id="customer-search" data-i18n-placeholder="search_customers" placeholder="Search customers...">
+          </div>
+          <button class="btn btn-primary" id="add-customer-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            <span data-i18n="add_customer">Add Customer</span>
+          </button>
+        </div>
+        <div id="customer-debt-summary" class="stat-grid" style="grid-template-columns:repeat(3,1fr); margin-bottom:18px;"></div>
+        <div class="product-grid" id="customer-grid"></div>
+      </section>
+
+      <!-- ===================== SCANNER ===================== -->
+      <section class="section" id="section-scanner">
+        <div id="scanner-reader" style="max-width:480px; margin:0 auto 20px; border-radius:var(--radius-lg); overflow:hidden;"></div>
+        <div style="display:flex; gap:10px; justify-content:center; margin-bottom:20px;">
+          <button class="btn btn-primary" id="scanner-start-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span data-i18n="scanner_start">Start Scanner</span>
+          </button>
+          <button class="btn btn-ghost" id="scanner-stop-btn" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            <span data-i18n="scanner_stop">Stop</span>
+          </button>
+          <button class="btn btn-ghost" id="scanner-manual-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>
+            <span data-i18n="scanner_manual">Manual Entry</span>
+          </button>
+        </div>
+        <div id="scanner-result" class="scanner-no-result">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/></svg>
+          <p data-i18n="scanner_hint">Point camera at a barcode or enter manually</p>
+        </div>
+      </section>
+
+      <!-- ===================== SETTINGS ===================== -->
+      <section class="section" id="section-settings">
+        <div class="glass-card settings-list">
+          <div class="settings-row">
+            <div class="s-info">
+              <strong data-i18n="settings_account">Account</strong>
+              <span id="account-username" data-i18n="signed_in_as">Signed in as</span>
+            </div>
+            <button class="btn btn-ghost" id="change-password-btn" data-i18n="change_password">Change Password</button>
+          </div>
+          <div class="settings-row">
+            <div class="s-info">
+              <strong data-i18n="logout">Log Out</strong>
+              <span data-i18n="logout_desc">End this session on this device</span>
+            </div>
+            <button class="btn btn-ghost" id="logout-btn-2" data-i18n="logout">Log Out</button>
+          </div>
+          <div class="settings-row">
+            <div class="s-info">
+              <strong data-i18n="settings_language">Language</strong>
+              <span data-i18n="settings_language_desc">Switch between English and Arabic</span>
+            </div>
+            <div class="lang-toggle-btns">
+              <button data-lang="en">English</button>
+              <button data-lang="ar">العربية</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div class="s-info">
+              <strong data-i18n="settings_theme">Theme</strong>
+              <span data-i18n="settings_theme_desc">Switch between dark and light mode</span>
+            </div>
+            <div class="switch-toggle" id="theme-switch"><div class="knob"></div></div>
+          </div>
+          <div class="settings-row">
+            <div class="s-info">
+              <strong data-i18n="settings_clear">Clear All Data</strong>
+              <span data-i18n="settings_clear_desc">Permanently erase products, sessions and reports</span>
+            </div>
+            <button class="btn btn-danger" id="clear-data-btn" data-i18n="clear_btn">Clear Data</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- Product modal -->
+<div class="modal-overlay" id="modal-product">
+  <div class="modal glass-card wide">
+    <div class="modal-head">
+      <h3 id="product-modal-title" data-i18n="add_product">Add Product</h3>
+      <button class="modal-close" data-close="modal-product"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <form id="product-form">
+      <div class="form-grid">
+        <div class="field">
+          <label data-i18n="field_product_name">Product Name</label>
+          <input type="text" id="product-name-input" required data-i18n-placeholder="ph_product_name" placeholder="e.g. iPhone 15 Case">
+        </div>
+        <div class="field">
+          <label data-i18n="field_category">Category</label>
+          <select id="product-category-input">
+            <option value="Chargers" data-i18n="type_chargers">Chargers</option>
+            <option value="Cables" data-i18n="type_cables">Cables</option>
+            <option value="Phone Cases" data-i18n="type_cases">Phone Cases</option>
+            <option value="Screen Protectors" data-i18n="type_protectors">Screen Protectors</option>
+            <option value="Bluetooth Earphones" data-i18n="type_bt_earphones">Bluetooth Earphones</option>
+            <option value="Wired Earphones" data-i18n="type_wired_earphones">Wired Earphones</option>
+            <option value="AUX Cables" data-i18n="type_aux">AUX Cables</option>
+            <option value="Adapters & Connectors" data-i18n="type_adapters">Adapters & Connectors</option>
+            <option value="Power Banks" data-i18n="type_powerbanks">Power Banks</option>
+            <option value="Phones" data-i18n="type_phones">Phones</option>
+            <option value="Other Accessories" selected data-i18n="type_other">Other Accessories</option>
+          </select>
+        </div>
+        <div class="field" id="field-product-brand">
+          <label data-i18n="field_brand">Brand</label>
+          <input type="text" id="product-brand-input" data-i18n-placeholder="ph_brand" placeholder="e.g. Samsung">
+        </div>
+        <div class="field" id="field-product-wattage" style="display:none;">
+          <label data-i18n="field_wattage">Wattage</label>
+          <input type="text" id="product-wattage-input" placeholder="e.g. 30W">
+        </div>
+        <div class="field" id="field-product-connector" style="display:none;">
+          <label data-i18n="field_connector">Connector / Type</label>
+          <input type="text" id="product-connector-input" placeholder="e.g. Type-C → Lightning">
+        </div>
+        <div class="field full" id="field-product-model" style="display:none;">
+          <label data-i18n="field_model">Compatible Phone Model</label>
+          <div class="combobox">
+            <input type="text" id="product-model-search" autocomplete="off" data-i18n-placeholder="model_ph" placeholder="Search phone model (Apple, Samsung, ...)">
+            <input type="hidden" id="product-model-id">
+            <div class="combobox-list" id="product-model-list"></div>
+          </div>
+          <div id="product-model-add-row" style="display:none; margin-top:10px; gap:8px; flex-wrap:wrap;">
+            <select id="product-model-brand" style="flex:1; min-width:120px; padding:10px 12px; border-radius:12px; border:1px solid var(--border-glass); background:var(--surface-strong); color:var(--text-primary);">
+              <option value="Apple">Apple</option>
+              <option value="Samsung">Samsung</option>
+              <option value="Redmi">Redmi</option>
+              <option value="Honor">Honor</option>
+              <option value="Infinix">Infinix</option>
+              <option value="Tecno">Tecno</option>
+              <option value="Other">Other</option>
+            </select>
+            <input type="text" id="product-model-name" style="flex:2; min-width:140px; padding:10px 12px; border-radius:12px; border:1px solid var(--border-glass); background:var(--surface-strong); color:var(--text-primary);" placeholder="Model name, e.g. iPhone 15">
+            <button type="button" class="btn btn-primary" id="product-model-save" style="padding:10px 16px;">Add</button>
+          </div>
+        </div>
+        <div class="field full">
+          <label data-i18n="field_description">Description / Specifications</label>
+          <input type="text" id="product-description-input" data-i18n-placeholder="ph_description" placeholder="e.g. Type-C → iPhone, fast charging">
+        </div>
+        <div class="field">
+          <label data-i18n="field_stock_qty">Quantity in Stock</label>
+          <input type="number" id="product-qty-input" inputmode="numeric" min="0" value="0" required>
+        </div>
+        <div class="field">
+          <label data-i18n="field_wholesale">Wholesale Price</label>
+          <input type="number" id="product-wholesale-input" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required>
+        </div>
+        <div class="field">
+          <label data-i18n="field_sell">Selling Price</label>
+          <input type="number" id="product-selling-input" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required>
+        </div>
+        <div class="field full">
+          <label data-i18n="field_image">Image URL (optional)</label>
+          <input type="text" id="product-image-input" data-i18n-placeholder="ph_image_url" placeholder="https://example.com/image.jpg">
+        </div>
+        <div class="field full">
+          <label data-i18n="field_notes">Notes (optional)</label>
+          <input type="text" id="product-notes-input" data-i18n-placeholder="ph_notes" placeholder="Additional info about this product">
+        </div>
+        <div class="field">
+          <label data-i18n="field_barcode">Barcode (optional)</label>
+          <div class="barcode-scan-wrap">
+            <input type="text" id="product-barcode-input" placeholder="e.g. 5901234123457">
+            <button type="button" class="barcode-scan-btn" id="product-barcode-scan-btn" title="Scan barcode">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="16" x2="17" y2="16"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="field">
+          <label data-i18n="field_min_stock">Minimum Stock Alert</label>
+          <input type="number" id="product-minstock-input" inputmode="numeric" min="0" value="5">
+        </div>
+      </div>
+      <input type="hidden" id="product-edit-id">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close="modal-product" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="save">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Purchase / restock modal -->
+<div class="modal-overlay" id="modal-purchase">
+  <div class="modal glass-card">
+    <div class="modal-head">
+      <h3 data-i18n="purchase_title">New Purchase</h3>
+      <button class="modal-close" data-close="modal-purchase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="warn-box" style="margin-bottom:16px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      <p><strong id="purchase-product-name"></strong><br><span data-i18n="purchase_hint">Add stock to this product. A new purchase batch is created internally — no duplicate product.</span></p>
+    </div>
+    <form id="purchase-form">
+      <div class="form-grid">
+        <div class="field">
+          <label data-i18n="field_qty">Quantity</label>
+          <input type="number" id="purchase-qty" inputmode="numeric" min="1" max="100000" value="1" required>
+        </div>
+        <div class="field">
+          <label data-i18n="purchase_price">Purchase Price</label>
+          <input type="number" id="purchase-cost" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required>
+        </div>
+      </div>
+      <input type="hidden" id="purchase-product-id">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close="modal-purchase" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="save">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Start new day modal -->
+<div class="modal-overlay" id="modal-startday">
+  <div class="modal glass-card">
+    <div class="modal-head">
+      <h3 data-i18n="start_new_day">Start New Day</h3>
+      <button class="modal-close" data-close="modal-startday"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <form id="startday-form">
+      <div class="field" style="margin-bottom:14px;">
+        <label data-i18n="field_day_name">Day Name</label>
+        <input type="text" id="day-name-input" required data-i18n-placeholder="ph_day_name" placeholder="e.g. Saturday">
+      </div>
+      <div class="field">
+        <label data-i18n="field_date">Date</label>
+        <input type="date" id="day-date-input" required>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close="modal-startday" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="create">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Close day confirm modal -->
+<div class="modal-overlay" id="modal-closeday">
+  <div class="modal glass-card">
+    <div class="modal-head">
+      <h3 data-i18n="close_day_confirm_title">Close this day?</h3>
+      <button class="modal-close" data-close="modal-closeday"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="warn-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      <p data-i18n="close_day_warning">This will lock today's session permanently and generate the final report. This cannot be undone.</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close="modal-closeday" data-i18n="cancel">Cancel</button>
+      <button type="button" class="btn btn-danger" id="confirm-close-day-btn" data-i18n="close_day">Close Day</button>
+    </div>
+  </div>
+</div>
+
+<!-- Final report modal (shown after closing) -->
+<div class="modal-overlay" id="modal-finalreport">
+  <div class="modal glass-card">
+    <div class="modal-head">
+      <h3 data-i18n="final_report">Final Report</h3>
+      <button class="modal-close" data-close="modal-finalreport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="final-receipt" id="final-report-body"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" data-close="modal-finalreport" data-i18n="done">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report detail modal -->
+<div class="modal-overlay" id="modal-reportdetail">
+  <div class="modal wide glass-card">
+    <div class="modal-head">
+      <h3 id="report-detail-title" data-i18n="day_details">Day Details</h3>
+      <button class="modal-close" data-close="modal-reportdetail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div id="report-detail-summary" style="margin-bottom:16px;"></div>
+    <div id="report-detail-notes" style="margin-bottom:16px; display:none;">
+      <h4 style="margin-bottom:8px; font-size:.9rem; color:var(--text-muted);" data-i18n="daily_notes">Daily Notes</h4>
+      <div id="report-detail-notes-list"></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="field_product">Product</th>
+            <th data-i18n="field_qty">Quantity</th>
+            <th data-i18n="field_cost">Cost Price</th>
+            <th data-i18n="field_sell">Selling Price</th>
+            <th data-i18n="field_profit">Profit</th>
+            <th data-i18n="field_payment">Payment</th>
+            <th data-i18n="field_time">Time</th>
+          </tr>
+        </thead>
+        <tbody id="report-detail-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Customer modal -->
+<div class="modal-overlay" id="modal-customer">
+  <div class="modal glass-card wide">
+    <div class="modal-head">
+      <h3 id="customer-modal-title" data-i18n="add_customer">Add Customer</h3>
+      <button class="modal-close" data-close="modal-customer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <form id="customer-form">
+      <div class="form-grid">
+        <div class="field">
+          <label data-i18n="field_customer_name">Customer Name</label>
+          <input type="text" id="customer-name-input" required placeholder="e.g. Ahmed">
+        </div>
+        <div class="field">
+          <label data-i18n="field_customer_phone">Phone Number</label>
+          <input type="text" id="customer-phone-input" placeholder="e.g. 01012345678">
+        </div>
+        <div class="field full">
+          <label data-i18n="field_notes">Notes</label>
+          <input type="text" id="customer-notes-input" data-i18n-placeholder="ph_notes" placeholder="Additional info">
+        </div>
+      </div>
+      <input type="hidden" id="customer-edit-id">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close="modal-customer" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="save">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Customer detail / debt modal -->
+<div class="modal-overlay" id="modal-customer-detail">
+  <div class="modal wide glass-card">
+    <div class="modal-head">
+      <h3 id="customer-detail-title">Customer</h3>
+      <button class="modal-close" data-close="modal-customer-detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div id="customer-detail-info" style="margin-bottom:16px;"></div>
+    <div style="display:flex; gap:10px; margin-bottom:16px;">
+      <button class="btn btn-primary" id="customer-add-debt-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        <span data-i18n="add_credit">Add Credit</span>
+      </button>
+      <button class="btn btn-ghost" id="customer-add-payment-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+        <span data-i18n="record_payment">Record Payment</span>
+      </button>
+    </div>
+    <h4 style="margin-bottom:10px; font-size:.9rem; color:var(--text-muted);" data-i18n="transaction_history">Transaction History</h4>
+    <div id="customer-debt-history"></div>
+  </div>
+</div>
+
+<!-- Change password modal -->
+<div class="modal-overlay" id="modal-changepassword">
+  <div class="modal glass-card">
+    <div class="modal-head">
+      <h3 data-i18n="change_password">Change Password</h3>
+      <button class="modal-close" data-close="modal-changepassword"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <form id="change-password-form">
+      <div class="field" style="margin-bottom:14px;">
+        <label data-i18n="current_password">Current Password</label>
+        <input type="password" id="cp-current" autocomplete="current-password" required>
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label data-i18n="new_username">New Username</label>
+        <input type="text" id="cp-username" autocomplete="username">
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label data-i18n="new_password">New Password (min 8 characters)</label>
+        <input type="password" id="cp-new" autocomplete="new-password">
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label data-i18n="confirm_password">Confirm New Password</label>
+        <input type="password" id="cp-confirm" autocomplete="new-password">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close="modal-changepassword" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="save">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Manual barcode entry modal -->
+<div class="modal-overlay" id="modal-manual-barcode">
+  <div class="modal glass-card">
+    <div class="modal-head">
+      <h3 data-i18n="scanner_manual">Manual Entry</h3>
+      <button class="modal-close" data-close="modal-manual-barcode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <form id="manual-barcode-form">
+      <div class="field" style="margin-bottom:14px;">
+        <label data-i18n="barcode_number">Barcode Number</label>
+        <input type="text" id="manual-barcode-input" required placeholder="Enter barcode">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-close="modal-manual-barcode" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" data-i18n="lookup">Lookup</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== AUTH / OFFLINE / LOADING SCREENS ===================== -->
+<div class="auth-screen" id="login-screen">
+  <div class="auth-card">
+    <div class="brand"><span class="dot"></span><span>Blue Mobile</span></div>
+    <h2 data-i18n="login_title">Welcome back</h2>
+    <p class="auth-sub" data-i18n="login_subtitle">Sign in to your Blue Mobile POS</p>
+    <form id="login-form" autocomplete="on">
+      <div class="field">
+        <label for="login-username" data-i18n="login_username">Username</label>
+        <input type="text" id="login-username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="login-password" data-i18n="login_password">Password</label>
+        <input type="password" id="login-password" autocomplete="current-password" required>
+      </div>
+      <div class="auth-error" id="login-error"></div>
+      <button type="submit" class="btn btn-primary btn-lg" id="login-submit-btn" style="width:100%; justify-content:center;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+        <span data-i18n="login_btn">Sign In</span>
+      </button>
+    </form>
+    <div class="auth-meta" data-i18n="login_meta">Secure admin access · Blue Mobile POS</div>
+  </div>
+</div>
+
+<div class="auth-screen" id="offline-screen">
+  <div class="auth-card">
+    <div class="brand"><span class="dot"></span><span>Blue Mobile</span></div>
+    <svg class="auth-offline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    <h2 data-i18n="offline_title">Cannot reach the server</h2>
+    <p class="auth-sub" data-i18n="offline_desc">The Blue Mobile backend is offline. Check that the server is running, then retry.</p>
+    <button class="btn btn-primary btn-lg" id="retry-btn" style="width:100%; justify-content:center;" data-i18n="retry">Retry</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="app-loading">
+  <div class="spinner"></div>
+  <span data-i18n="loading">Loading...</span>
+</div>
+
+<div id="toast-stack"></div>
+
+<!-- Product barcode scan overlay -->
+<div class="barcode-scan-overlay" id="barcode-scan-overlay">
+  <div id="barcode-scan-reader" style="width:min(90vw, 360px); border-radius:var(--radius-lg); overflow:hidden;"></div>
+  <span class="scan-hint" data-i18n="barcode_scan_hint">Point camera at a barcode</span>
+  <button class="scan-cancel" id="barcode-scan-cancel" data-i18n="cancel">Cancel</button>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
